@@ -1148,7 +1148,7 @@ ObjectGuid PlayerbotFactory::GetRandomBot()
         do
         {
             Field* fields = result->Fetch();
-            ObjectGuid guid = ObjectGuid(fields[0].GetUInt64());
+            ObjectGuid guid = ObjectGuid(fields[0].GetUInt32());
             if (!sObjectMgr->GetPlayerByLowGUID(guid))
                 guids.push_back(guid);
         } while (result->NextRow());
