@@ -369,8 +369,8 @@ uint32 RandomPlayerbotMgr::GetZoneLevel(uint16 mapId, float teleX, float teleY, 
     if (results)
     {
         Field* fields = results->Fetch();
-        uint32 minLevel = fields[0].GetUInt32();
-        uint32 maxLevel = fields[1].GetUInt32();
+        uint8 minLevel = fields[0].GetUInt8();
+        uint8 maxLevel = fields[1].GetUInt8();
         level = urand(minLevel, maxLevel);
         if (level > maxLevel)
             level = maxLevel;
@@ -485,7 +485,7 @@ vector<uint32> RandomPlayerbotMgr::GetFreeBots(bool alliance)
         {
             Field* fields = result->Fetch();
 			uint32 guid = fields[0].GetUInt32();
-			uint32 race = fields[1].GetUInt8();
+			uint8 race = fields[1].GetUInt8();
             if (bots.find(guid) == bots.end() &&
                     ((alliance && IsAlliance(race)) || ((!alliance && !IsAlliance(race))
             )))
@@ -574,7 +574,7 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* handler, cha
                 do
                 {
                     Field* fields = results->Fetch();
-                    ObjectGuid guid = ObjectGuid(fields[0].GetUInt64());
+                    ObjectGuid guid = ObjectGuid(fields[0].GetUInt32());
 
                     Player* bot = sObjectMgr->GetPlayerByLowGUID(guid);
                     if (!bot)

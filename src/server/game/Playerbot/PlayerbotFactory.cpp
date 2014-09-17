@@ -1171,8 +1171,8 @@ void PlayerbotFactory::InitQuests()
     {
         Field* fields = results->Fetch();
         uint32 questId = fields[0].GetUInt32();
-        uint32 requiredClasses = fields[1].GetUInt32();
-        uint32 requiredRaces = fields[2].GetUInt32();
+        uint16 requiredClasses = fields[1].GetUInt16();
+        uint16 requiredRaces = fields[2].GetUInt16();
         if ((requiredClasses & bot->getClassMask()) && (requiredRaces & bot->getRaceMask()))
             ids.push_back(questId);
     } while (results->NextRow());
