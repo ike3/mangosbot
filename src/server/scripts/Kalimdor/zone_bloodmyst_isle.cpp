@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ EndContentData */
 
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
-#include "PassiveAI.h"
 #include "Player.h"
 
 /*######
@@ -49,17 +48,13 @@ class npc_webbed_creature : public CreatureScript
 public:
     npc_webbed_creature() : CreatureScript("npc_webbed_creature") { }
 
-    struct npc_webbed_creatureAI : public NullCreatureAI
+    struct npc_webbed_creatureAI : public ScriptedAI
     {
-        npc_webbed_creatureAI(Creature* creature) : NullCreatureAI(creature) { }
+        npc_webbed_creatureAI(Creature* creature) : ScriptedAI(creature) { }
 
         void Reset() override { }
 
         void EnterCombat(Unit* /*who*/) override { }
-
-        void AttackStart(Unit* /*who*/) override { }
-
-        void MoveInLineOfSight(Unit* /*who*/) override { }
 
         void JustDied(Unit* killer) override
         {

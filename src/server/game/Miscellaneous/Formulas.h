@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ namespace Trinity
             else if (pl_level <= 39)
                 level = pl_level - 5 - pl_level / 10;
             else if (pl_level <= 59)
-                level = pl_level - 1 - pl_level / 5;
+                level = pl_level + 1 - pl_level / 5;
             else
                 level = pl_level - 9;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -46,13 +46,7 @@ enum DataTypes
     DATA_ESCAPE_LEADER                          = 10,
     DATA_ICEWALL                                = 11,
     DATA_ICEWALL_TARGET                         = 12,
-    DATA_GUNSHIP                                = 13,
-
-    // Quest stuff
-    DATA_QUEL_DELAR_EVENT                       = 14,
-    DATA_FROSTMOURNE_ALTAR_BUNNY                = 15,
-    DATA_UTHER_QUEL_DELAR                       = 16,
-    DATA_QUEL_DELAR_INVOKER                     = 17
+    DATA_GUNSHIP                                = 13
 };
 
 enum CreatureIds
@@ -137,8 +131,7 @@ enum InstanceEvents
     EVENT_NEXT_WAVE                             = 2,
     EVENT_DO_WIPE                               = 3,
     EVENT_ADD_WAVE                              = 4,
-    EVENT_SPAWN_ESCAPE_EVENT                    = 5,
-    EVENT_QUEL_DELAR_SUMMON_UTHER               = 6
+    EVENT_SPAWN_ESCAPE_EVENT                    = 5
 };
 
 enum InstanceEventIds
@@ -167,17 +160,7 @@ enum InstanceSpells
     // Gunship
     SPELL_GUNSHIP_CANNON_FIRE                   = 70017,
     SPELL_GUNSHIP_CANNON_FIRE_MISSILE_ALLIANCE  = 70021,
-    SPELL_GUNSHIP_CANNON_FIRE_MISSILE_HORDE     = 70246,
-
-    // Halls of Reflection quest
-    SPELL_QUEL_DELAR_COMPULSION                 = 70013,
-    SPELL_ESSENCE_OF_CAPTURED                   = 70720
-};
-
-enum InstanceQuests
-{
-    QUEST_HALLS_OF_REFLECTION_ALLIANCE          = 24480,
-    QUEST_HALLS_OF_REFLECTION_HORDE             = 24561
+    SPELL_GUNSHIP_CANNON_FIRE_MISSILE_HORDE     = 70246
 };
 
 enum InstanceWorldStates

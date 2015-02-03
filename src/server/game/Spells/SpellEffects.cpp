@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -5162,6 +5162,9 @@ void Spell::EffectTransmitted(SpellEffIndex effIndex)
                 case 2: lastSec = 13; break;
                 case 3: lastSec = 17; break;
             }
+
+			if (sWorld->getBoolConfig(CONFIG_FAST_FISHING))
+				lastSec = 17;
 
             duration = duration - lastSec*IN_MILLISECONDS + FISHING_BOBBER_READY_TIME*IN_MILLISECONDS;
             break;

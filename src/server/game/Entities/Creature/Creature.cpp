@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -1404,30 +1404,19 @@ bool Creature::CanStartAttack(Unit const* who, bool force) const
             return false;
     }
 
+	// LASYAN3: No aggro for grey creatures
+		if (who->m_ControlledByPlayer && sWorld->getBoolConfig(CONFIG_NO_GREY_AGGRO))
+		{
+			uint32 playerlevel = who->getLevelForTarget(this);
+			uint32 creaturelevel = getLevelForTarget(who);
+			if (creaturelevel <= Trinity::XP::GetGrayLevel(playerlevel))
+				return false;
+		}
+
     if (!CanCreatureAttack(who, force))
         return false;
 
-    // No aggro from gray creatures
-    if (CheckNoGrayAggroConfig(who->getLevelForTarget(this), getLevelForTarget(who)))
-        return false;
-
     return IsWithinLOSInMap(who);
-}
-
-
-bool Creature::CheckNoGrayAggroConfig(uint32 playerLevel, uint32 creatureLevel) const
-{
-    if (Trinity::XP::GetColorCode(playerLevel, creatureLevel) != XP_GRAY)
-        return false;
-
-    uint32 notAbove = sWorld->getIntConfig(CONFIG_NO_GRAY_AGGRO_ABOVE);
-    uint32 notBelow = sWorld->getIntConfig(CONFIG_NO_GRAY_AGGRO_BELOW);
-    if (notAbove == 0 && notBelow == 0)
-        return false;
-
-    if (playerLevel <= notBelow || (playerLevel >= notAbove && notAbove > 0))
-        return true;
-    return false;
 }
 
 float Creature::GetAttackDistance(Unit const* player) const
@@ -1475,7 +1464,7 @@ void Creature::setDeathState(DeathState s)
     if (s == JUST_DIED)
     {
         m_corpseRemoveTime = time(NULL) + m_corpseDelay;
-        m_respawnTime = time(NULL) + m_respawnDelay + m_corpseDelay;
+		m_respawnTime = time(NULL) + (m_respawnDelay / sWorld->getFloatConfig(CONFIG_RESPAWNSPEED)) + m_corpseDelay;
 
         // always save boss respawn time at death to prevent crash cheating
         if (sWorld->getBoolConfig(CONFIG_SAVE_RESPAWN_TIME_IMMEDIATELY) || isWorldBoss())

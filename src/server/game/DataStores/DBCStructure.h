@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -1151,7 +1151,7 @@ struct ItemDisplayInfoEntry
     uint32      ID;                                         // 0        m_ID
                                                             // 1        m_modelName[2]
                                                             // 2        m_modelTexture[2]
-                                                            // 3        m_inventoryIcon
+    char*       inventoryIcon;                              // 3        m_inventoryIcon
                                                             // 4        m_geosetGroup[3]
                                                             // 5        m_flags
                                                             // 6        m_spellVisualID

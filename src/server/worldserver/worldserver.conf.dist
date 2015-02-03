@@ -67,7 +67,7 @@ RealmID = 1
 #        Example:     "@prefix@/share/trinitycore"
 #        Default:     "."
 
-DataDir = "."
+DataDir = "Data"
 
 #
 #    LogsDir
@@ -76,7 +76,7 @@ DataDir = "."
 #                     Logs directory must exists, or log file creation will be disabled.
 #        Default:     "" - (Log files will be stored in the current path)
 
-LogsDir = ""
+LogsDir = "Logs"
 
 #
 #    LoginDatabaseInfo
@@ -93,9 +93,9 @@ LogsDir = ""
 #                     "127.0.0.1;3306;trinity;trinity;world"      - (WorldDatabaseInfo)
 #                     "127.0.0.1;3306;trinity;trinity;characters" - (CharacterDatabaseInfo)
 
-LoginDatabaseInfo     = "127.0.0.1;3306;trinity;trinity;auth"
-WorldDatabaseInfo     = "127.0.0.1;3306;trinity;trinity;world"
-CharacterDatabaseInfo = "127.0.0.1;3306;trinity;trinity;characters"
+LoginDatabaseInfo     = "127.0.0.1;3306;root;123456;auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;root;123456;world"
+CharacterDatabaseInfo = "127.0.0.1;3306;root;123456;characters"
 
 #
 #    LoginDatabase.WorkerThreads
@@ -295,7 +295,7 @@ PlayerSave.Stats.SaveOnlyOnLogout = 1
 #        Default:     0 - (Disabled)
 #                     1 - (Enabled)
 
-mmap.enablePathFinding = 0
+mmap.enablePathFinding = 1
 
 #
 #    vmap.enableLOS
@@ -579,22 +579,6 @@ MinCharterName = 2
 #        Default:     2
 
 MinPetName = 2
-
-#
-#    Guild.CharterCost
-#    ArenaTeam.CharterCost.2v2
-#    ArenaTeam.CharterCost.3v3
-#    ArenaTeam.CharterCost.5v5
-#        Description: Amount of money (in Copper) the petitions costs.
-#        Default:     1000 - (10 Silver)
-#                     800000 - (80 Gold)
-#                     1200000 - (120 Gold)
-#                     2000000 - (200 Gold)
-
-Guild.CharterCost = 1000
-ArenaTeam.CharterCost.2v2 = 800000
-ArenaTeam.CharterCost.3v3 = 1200000
-ArenaTeam.CharterCost.5v5 = 2000000
 
 #
 #    MaxWhoListReturns
@@ -2691,21 +2675,6 @@ Calculate.Creature.Zone.Area.Data = 0
 Calculate.Gameoject.Zone.Area.Data = 0
 
 #
-#     NoGrayAggro
-#        Description: Gray mobs will not aggro players above/below some levels
-#                     NoGrayAggro.Above: If player is at this level or above, gray mobs will not attack
-#                     NoGrayAggro.Below: If player is at this level or below, gray mobs will not attack
-#        Example:     You can for example make players free from gray until they reach level 30.
-#                     Then gray will start to attack them, until they reach max level (80 for example):
-#                     NoGrayAggro.Above = 80
-#                     NoGrayAggro.Below = 29
-#        Default: 0 - (Blizzlike)
-#
-
-NoGrayAggro.Above = 0
-NoGrayAggro.Below = 0
-
-#
 ###################################################################################################
 
 ###################################################################################################
@@ -2724,7 +2693,7 @@ AuctionHouseBot.Update.Interval = 20
 #       Default:     0 - (Disabled)
 #                    1 - (Enabled)
 
-AuctionHouseBot.Seller.Enabled = 0
+AuctionHouseBot.Seller.Enabled = 1
 
 #
 #    AuctionHouseBot.Alliance.Items.Amount.Ratio
@@ -3016,7 +2985,7 @@ AuctionHouseBot.forceExcludeItems = ""
 #       Default:     0 - (Disabled)
 #                    1 - (Enabled)
 
-AuctionHouseBot.Buyer.Enabled = 0
+AuctionHouseBot.Buyer.Enabled = 1
 
 #
 #    AuctionHouseBot.Buyer.FACTION.Enabled
@@ -3059,7 +3028,7 @@ AuctionHouseBot.Buyer.Neutral.Chance.Ratio = 3
 ###################################################################################################
 
 ###################################################################################################
-# LOGGING SYSTEM SETTINGS
+#  LOGGING SYSTEM SETTINGS
 #
 #  Appender config values: Given a appender "name"
 #    Appender.name
@@ -3125,7 +3094,7 @@ AuctionHouseBot.Buyer.Neutral.Chance.Ratio = 3
 #                         Example:  536870912 (512 mb)
 #
 
-Appender.Console=1,3,0
+Appender.Console=1,1,6,13 11 9 5 3 1
 Appender.Server=2,2,0,Server.log,w
 Appender.GM=2,2,15,gm/gm_%s.log
 Appender.DBErrors=2,2,0,DBErrors.log
@@ -3250,3 +3219,296 @@ PacketSpoof.BanDuration = 86400
 
 #
 ###################################################################################################
+
+###################################################################################################
+#    Transmogrification config
+###################################################################################################
+#
+#    SETTINGS
+#
+#    Logger.custom.transmog
+#        Description: Transmogrification logging setting, see logger settings
+#        Default:    3, Console Server
+#
+#    Transmogrification.EnableTransmogInfo
+#        Description: Enables / Disables the info button for transmogrification
+#        Default:    1
+#
+#    Transmogrification.TransmogNpcText
+#        Description: The npc_text entry of the info menu for transmogrification
+#        Default:    50000
+#
+#    Transmogrification.Allowed
+#        Description: A list of item entries that are allowed for transmogrification (skips quality and CanUseItem check)
+#                     Example: "25 35674 5623"
+#        Default:    ""
+#
+#    Transmogrification.NotAllowed
+#        Description: A list of item entries that are NOT allowed for transmogrification
+#                     Example: "25 35674 5623"
+#        Default:    ""
+
+Logger.custom.transmog = 3, Console Server
+
+Transmogrification.EnableTransmogInfo = 1
+Transmogrification.TransmogNpcText = 50000
+
+Transmogrification.Allowed = ""
+Transmogrification.NotAllowed = ""
+
+#
+#    COPPER COST
+#
+#    Transmogrification.ScaledCostModifier
+#        Description: A multiplier for the default gold cost (change to 0 for no default cost)
+#        Default:    1.0
+#
+#    Transmogrification.CopperCost
+#        Description: Cost added on top of other costs (can be negative)
+#        Default:    0
+#
+#    For custom gold cost set ScaledCostModifier to 0.0 and CopperCost to what ever cost you want
+
+Transmogrification.ScaledCostModifier = 1.0
+Transmogrification.CopperCost = 0
+
+#
+#    TOKEN COST
+#
+#    Transmogrification.RequireToken
+#        Description: Adds/disables token cost
+#        Default:    0
+#
+#    Transmogrification.TokenEntry
+#        Description: Entry of the token item
+#        Default:    49426
+#
+#    Transmogrification.TokenAmount
+#        Description: Amount of tokens required
+#        Default:    1
+
+Transmogrification.RequireToken = 0
+Transmogrification.TokenEntry = 49426
+Transmogrification.TokenAmount = 1
+
+#
+#    REQUIREMENTS
+#
+#    Transmogrification.AllowPoor
+#        Description: Allow poor quality items to be used as source and target items
+#        Default:    0
+#
+#    Transmogrification.AllowCommon
+#        Description: Allow common quality items to be used as source and target items
+#        Default:    0
+#
+#    Transmogrification.AllowUncommon
+#        Description: Allow uncommon quality items to be used as source and target items
+#        Default:    1
+#
+#    Transmogrification.AllowRare
+#        Description: Allow rare quality items to be used as source and target items
+#        Default:    1
+#
+#    Transmogrification.AllowEpic
+#        Description: Allow epic quality items to be used as source and target items
+#        Default:    1
+#
+#    Transmogrification.AllowLegendary
+#        Description: Allow legendary quality items to be used as source and target items
+#        Default:    0
+#
+#    Transmogrification.AllowArtifact
+#        Description: Allow artifact quality items to be used as source and target items
+#        Default:    0
+#
+#    Transmogrification.AllowHeirloom
+#        Description: Allow heirloom quality items to be used as source and target items
+#        Default:    1
+#
+#    Transmogrification.AllowMixedArmorTypes
+#        Description: Allow cloth items to be transmogrified with plate for example
+#        Default:    0
+#
+#    Transmogrification.AllowMixedWeaponTypes
+#        Description: Allow axe to be transmogrified with dagger for example
+#        Default:    0
+#
+#    Transmogrification.AllowFishingPoles
+#        Description: Allow fishing poles to be transmogrified
+#        Default:    0
+#
+#    Transmogrification.IgnoreReqRace
+#        Description: Ignore required race for source items
+#        Default:    0
+#
+#    Transmogrification.IgnoreReqClass
+#        Description: Ignore required class for source items
+#        Default:    0
+#
+#    Transmogrification.IgnoreReqSkill
+#        Description: Ignore required skill for source items
+#        Default:    0
+#
+#    Transmogrification.IgnoreReqSpell
+#        Description: Ignore required spell for source items
+#        Default:    0
+#
+#    Transmogrification.IgnoreReqLevel
+#        Description: Ignore required level for source items
+#        Default:    0
+#
+#    Transmogrification.IgnoreReqEvent
+#        Description: Ignore required event for source items
+#        Default:    0
+#
+#    Transmogrification.IgnoreReqStats
+#        Description: Ignore stat count > 0 requirement for source items
+#        Default:    0
+
+Transmogrification.AllowPoor = 0
+Transmogrification.AllowCommon = 0
+Transmogrification.AllowUncommon = 1
+Transmogrification.AllowRare = 1
+Transmogrification.AllowEpic = 1
+Transmogrification.AllowLegendary = 0
+Transmogrification.AllowArtifact = 0
+Transmogrification.AllowHeirloom = 1
+
+Transmogrification.AllowMixedArmorTypes = 0
+Transmogrification.AllowMixedWeaponTypes = 0
+Transmogrification.AllowFishingPoles = 0
+
+Transmogrification.IgnoreReqRace = 0
+Transmogrification.IgnoreReqClass = 0
+Transmogrification.IgnoreReqSkill = 0
+Transmogrification.IgnoreReqSpell = 0
+Transmogrification.IgnoreReqLevel = 0
+Transmogrification.IgnoreReqEvent = 0
+Transmogrification.IgnoreReqStats = 0
+
+#
+#    SET FEATURE
+#
+#    Transmogrification.EnableSets
+#        Description: Enables / Disables the set feature. If you want permanent disable, check Transmogrification.h
+#        Default:    1
+#
+#    Transmogrification.MaxSets
+#        Description: Maximum amount of sets a player can save (hardcap at 25)
+#        Default:    10
+#
+#    Transmogrification.EnableSetInfo
+#        Description: Enables / Disables the info button for set fature
+#        Default:    1
+#
+#    Transmogrification.SetNpcText
+#        Description: The npc_text entry of the info menu for the set feature
+#        Default:    50001
+#
+#    Transmogrification.SetCostModifier
+#        Description: A multiplier for the default gold cost (all costs summed together) (change to 0 for no default cost)
+#        Default:    3.0
+#
+#    Transmogrification.SetCopperCost
+#        Description: Cost added on top of other costs (can be negative)
+#        Default:    0
+
+Transmogrification.EnableSets = 1
+Transmogrification.MaxSets = 10
+
+Transmogrification.EnableSetInfo = 1
+Transmogrification.SetNpcText = 50001
+
+Transmogrification.SetCostModifier = 3.0
+Transmogrification.SetCopperCost = 0
+
+#
+###################################################################################################
+
+###################################################################################################################
+#
+# Custom.SpeedGame
+# Set it to a number upper than 1 to speed up realm timer
+# Default : 1 (Real Time)
+# Example : 60 to force 1scde (real time) = 1 minute (realm timer)
+
+Custom.SpeedGame = 1
+
+# Custom.NoCastTime
+# Set it to 1 to disable cast time
+# Default : 0 (Cast Time Enable)
+#
+
+Custom.NoCastTime = 0
+
+# Custom.NoCooldown
+# Set it to 1 to disable cooldown
+# Default : 0 (Cooldown Enable)
+#
+
+Custom.NoCooldown = 0
+
+# Custom.HurtInRealTime
+# Set it to 1 to disable autohurt with weapon
+# Default : 0 (Autohurt Enable)
+
+Custom.HurtInRealTime = 0
+
+# Custom.AttackSpeedForPlayer
+# Custom.AttackSpeedForMobs
+# Set it to a number upper than 1 to speed up the attack of the player or the mobs
+# Default : 1.0 (Normal speed)
+# Example : 2.0 (attack speed is 200% faster)
+# Example : 0.5 (attack speed is 50% slower)
+#
+
+Custom.AttackSpeedForPlayer = 1.0
+Custom.AttackSpeedForMobs = 1.0
+
+# Custom.FastFishing
+# Set it to 1 to make fishing a lot faster!
+# Default : 0 (Fishing is normal)
+#
+
+Custom.FastFishing = 0
+
+# Custom.GainHonorOnGuardKill
+# Custom.GainHonorOnEliteKill
+# Set it to 1 to gain honor when you kill a guard or an elite mob.
+# Note that not all city guards will give you honor. It seems only capital and big city guards are flagged as so in the database.
+# Note that this does not apply on rare mob, unless he is also elite
+# Default : 0 (No honor when you kill a guard/elite mob)
+#
+
+Custom.GainHonorOnGuardKill = 0
+Custom.GainHonorOnEliteKill = 0
+
+# Custom.NoGreyAggro
+# Set it to 1 to disable the aggro of grey (low level) creatures
+# Default : 0 (Aggro Enable)
+#
+
+Custom.NoGreyAggro = 0
+
+# Custom.RespawnSpeed
+# Set it to a number upper than 1 to speed up the respawn of mobs (and lower than 1 to slow down).
+# Default : 1.0 (Normal speed)
+#
+
+Custom.RespawnSpeed = 1.0
+
+#
+
+# Custom.AutoCompleteQuestDelay
+# Set it to a number to enable the summon of the quest giver of the quest you just completed.
+# The number indicates the duration of the summoning.
+# Default : 0 (AutoComplete Disable)
+# Example : 180 (When a quest is completed, the quest giver will be summoned for 3 minutes)
+#
+
+Custom.AutoCompleteQuestDelay = 180
+
+#
+###################################################################################################################
+

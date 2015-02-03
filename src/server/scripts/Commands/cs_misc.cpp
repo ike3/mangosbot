@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1047,9 +1047,6 @@ public:
 
     static bool HandleShowAreaCommand(ChatHandler* handler, char const* args)
     {
-        if (!*args)
-            return false;
-
         Player* playerTarget = handler->getSelectedPlayer();
         if (!playerTarget)
         {
@@ -1058,29 +1055,56 @@ public:
             return false;
         }
 
-        int32 area = GetAreaFlagByAreaID(atoi((char*)args));
-        int32 offset = area / 32;
-
-        if (area<0 || offset >= PLAYER_EXPLORED_ZONES_SIZE)
-        {
-            handler->SendSysMessage(LANG_BAD_VALUE);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        uint32 val = uint32((1 << (area % 32)));
-        uint32 currFields = playerTarget->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
-        playerTarget->SetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset, uint32((currFields | val)));
-
-        handler->SendSysMessage(LANG_EXPLORE_AREA);
-        return true;
+		if (*args)
+			{
+			int32 area = GetAreaFlagByAreaID(atoi((char*)args));
+			int32 offset = area / 32;
+			
+				if (area<0 || offset >= PLAYER_EXPLORED_ZONES_SIZE)
+				{
+				handler->SendSysMessage(LANG_BAD_VALUE);
+				handler->SetSentErrorMessage(true);
+				return false;
+				}
+			
+			uint32 val = uint32((1 << (area % 32)));
+			uint32 currFields = playerTarget->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
+			playerTarget->SetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset, uint32((currFields | val)));
+			
+				handler->SendSysMessage(LANG_EXPLORE_AREA);
+			}
+		else
+			{
+			uint32 zoneId = playerTarget->GetBaseMap()->GetZoneId(playerTarget->GetPositionX(), playerTarget->GetPositionY(), playerTarget->GetPositionZ());
+			for (uint32 areaflag = 0; areaflag < sAreaStore.GetNumRows(); ++areaflag)
+				{
+				AreaTableEntry const* areaEntry = sAreaStore.LookupEntry(areaflag);
+				if (areaEntry && areaEntry->zone == zoneId)
+					{
+					int32 area = GetAreaFlagByAreaID(areaEntry->ID);
+					int32 offset = area / 32;
+					
+						if (area<0 || offset >= PLAYER_EXPLORED_ZONES_SIZE)
+						{
+						//handler->SendSysMessage(LANG_BAD_VALUE);
+							//handler->SetSentErrorMessage(true);
+							//return false;
+							continue;
+						}
+					
+					uint32 val = uint32((1 << (area % 32)));
+					uint32 currFields = playerTarget->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
+					playerTarget->SetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset, uint32((currFields | val)));
+					}
+				}
+			playerTarget->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EXPLORE_AREA);
+			}
+		
+			return true;
     }
 
     static bool HandleHideAreaCommand(ChatHandler* handler, char const* args)
     {
-        if (!*args)
-            return false;
-
         Player* playerTarget = handler->getSelectedPlayer();
         if (!playerTarget)
         {
@@ -1089,21 +1113,50 @@ public:
             return false;
         }
 
-        int32 area = GetAreaFlagByAreaID(atoi((char*)args));
-        int32 offset = area / 32;
-
-        if (area < 0 || offset >= PLAYER_EXPLORED_ZONES_SIZE)
-        {
-            handler->SendSysMessage(LANG_BAD_VALUE);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        uint32 val = uint32((1 << (area % 32)));
-        uint32 currFields = playerTarget->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
-        playerTarget->SetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset, uint32((currFields ^ val)));
-
-        handler->SendSysMessage(LANG_UNEXPLORE_AREA);
+		if (*args)
+			{
+			int32 area = GetAreaFlagByAreaID(atoi((char*)args));
+			int32 offset = area / 32;
+			
+				if (area < 0 || offset >= PLAYER_EXPLORED_ZONES_SIZE)
+				{
+				handler->SendSysMessage(LANG_BAD_VALUE);
+				handler->SetSentErrorMessage(true);
+				return false;
+				}
+			
+			uint32 val = uint32((1 << (area % 32)));
+			uint32 currFields = playerTarget->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
+			playerTarget->SetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset, uint32((currFields ^ val)));
+			
+				handler->SendSysMessage(LANG_UNEXPLORE_AREA);
+			}
+		else
+			{
+			uint32 zoneId = playerTarget->GetBaseMap()->GetZoneId(playerTarget->GetPositionX(), playerTarget->GetPositionY(), playerTarget->GetPositionZ());
+			for (uint32 areaflag = 0; areaflag < sAreaStore.GetNumRows(); ++areaflag)
+				{
+				AreaTableEntry const* areaEntry = sAreaStore.LookupEntry(areaflag);
+				if (areaEntry && areaEntry->zone == zoneId)
+					{
+					int32 area = GetAreaFlagByAreaID(areaEntry->ID);
+					int32 offset = area / 32;
+					
+						if (area<0 || offset >= PLAYER_EXPLORED_ZONES_SIZE)
+						{
+						//handler->SendSysMessage(LANG_BAD_VALUE);
+							//handler->SetSentErrorMessage(true);
+							//return false;
+							continue;
+						}
+					
+					uint32 val = uint32((1 << (area % 32)));
+					uint32 currFields = playerTarget->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
+					playerTarget->SetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset, uint32((currFields ^ val)));
+					}
+				}
+			//playerTarget->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EXPLORE_AREA);
+			}
         return true;
     }
 
@@ -1987,7 +2040,7 @@ public:
     static bool HandleMuteInfoHelper(uint32 accountId, char const* accountName, ChatHandler *handler)
     {
         PreparedStatement *stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_MUTE_INFO);
-        stmt->setUInt32(0, accountId);
+        stmt->setUInt16(0, accountId);
         PreparedQueryResult result = LoginDatabase.Query(stmt);
         
         if (!result)

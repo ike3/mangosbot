@@ -17,10 +17,16 @@ public:
 
     static ObjectGuid GetRandomBot();
     void CleanRandomize();
+    // FEYZEE: new functions used by init=high80 command
+    void CleanBuild();
     void Randomize();
     void Refresh();
 
 private:
+    // FEYZEE: new functions used by init=high80 command
+    void AddEquipment(uint8 Slot, uint32 ItemId);
+    void InitHunterPet();
+    void ClearAllInventory();
     void Randomize(bool incremental);
     void Prepare();
     void InitSecondEquipmentSet();

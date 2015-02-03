@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,6 +25,7 @@
 #include "Battleground.h"
 #include "Vehicle.h"
 #include "Pet.h"
+#include "World.h"
 
 uint32 GetTargetFlagMask(SpellTargetObjectTypes objType)
 {
@@ -2109,7 +2110,10 @@ uint32 SpellInfo::CalcCastTime(Spell* spell /*= NULL*/) const
     if (Attributes & SPELL_ATTR0_REQ_AMMO && (!IsAutoRepeatRangedSpell()))
         castTime += 500;
 
-    return (castTime > 0) ? uint32(castTime) : 0;
+	if (!sWorld->getBoolConfig(CONFIG_NO_CAST_TIME))
+			return (castTime > 0) ? uint32(castTime) : 0;
+	else
+			return 0;
 }
 
 uint32 SpellInfo::GetMaxTicks() const
