@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -574,8 +574,8 @@ m_caster((info->AttributesEx6 & SPELL_ATTR6_CAST_BY_CHARMER && caster->GetCharme
 
     m_spellState = SPELL_STATE_NULL;
     _triggeredCastFlags = triggerFlags;
-    if (info->AttributesEx4 & SPELL_ATTR4_TRIGGERED)
-        _triggeredCastFlags = TriggerCastFlags(TRIGGERED_FULL_MASK & ~TRIGGERED_IGNORE_EQUIPPED_ITEM_REQUIREMENT);
+    if (info->AttributesEx4 & SPELL_ATTR4_CAN_CAST_WHILE_CASTING)
+        _triggeredCastFlags = TriggerCastFlags(uint32(_triggeredCastFlags) | TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_CAST_DIRECTLY);
 
     m_CastItem = NULL;
     m_castItemGUID.Clear();
@@ -3438,7 +3438,7 @@ void Spell::SendSpellCooldown()
     {
         // Handle pet cooldowns here if needed instead of in PetAI to avoid hidden cooldown restarts
         Creature* _creature = m_caster->ToCreature();
-        if (_creature && _creature->IsPet())
+        if (_creature && (_creature->IsPet() || _creature->IsGuardian()))
             _creature->AddCreatureSpellCooldown(m_spellInfo->Id);
 
         return;
@@ -7041,6 +7041,19 @@ bool Spell::CallScriptEffectHandlers(SpellEffIndex effIndex, SpellEffectHandleMo
         (*scritr)->_FinishScriptCall();
     }
     return preventDefault;
+}
+
+void Spell::CallScriptSuccessfulDispel(SpellEffIndex effIndex)
+{
+    for (std::list<SpellScript*>::iterator scritr = m_loadedScripts.begin(); scritr != m_loadedScripts.end(); ++scritr)
+    {
+        (*scritr)->_PrepareScriptCall(SPELL_SCRIPT_HOOK_EFFECT_SUCCESSFUL_DISPEL);
+        std::list<SpellScript::EffectHandler>::iterator hookItrEnd = (*scritr)->OnEffectSuccessfulDispel.end(), hookItr = (*scritr)->OnEffectSuccessfulDispel.begin();
+        for (; hookItr != hookItrEnd; ++hookItr)
+            hookItr->Call(*scritr, effIndex);
+
+        (*scritr)->_FinishScriptCall();
+    }
 }
 
 void Spell::CallScriptBeforeHitHandlers()

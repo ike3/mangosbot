@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -456,6 +456,12 @@ void WorldSession::HandleQuestConfirmAccept(WorldPacket& recvData)
             return;
 
         if (!_player->IsInSameRaidWith(originalPlayer))
+            return;
+
+        if (!originalPlayer->CanShareQuest(questId))
+            return;
+
+        if (!_player->CanTakeQuest(quest, true))
             return;
 
         if (_player->CanAddQuest(quest, true))
