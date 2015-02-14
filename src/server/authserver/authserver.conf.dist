@@ -37,7 +37,7 @@
 #                     Logs directory must exists, or log file creation will be disabled.
 #        Default:     "" - (Log files will be stored in the current path)
 
-LogsDir = ""
+LogsDir = "Logs"
 
 #
 #    MaxPingTime
@@ -137,7 +137,7 @@ WrongPass.BanType = 0
 #                                                                           Unix/Linux)
 #        Default:     "127.0.0.1;3306;trinity;trinity;auth"
 
-LoginDatabaseInfo = "127.0.0.1;3306;trinity;trinity;auth"
+LoginDatabaseInfo = "127.0.0.1;3306;root;123456;auth"
 
 #
 #    LoginDatabase.WorkerThreads
@@ -223,7 +223,7 @@ Wrong.Password.Login.Logging = 0
 #                         Example:  536870912 (512 mb)
 #
 
-Appender.Console=1,2,0
+Appender.Console=1,2,0,13 11 9 5 3 1
 Appender.Auth=2,2,0,Auth.log,w
 
 #  Logger config values: Given a logger "name"

@@ -1404,6 +1404,15 @@ bool Creature::CanStartAttack(Unit const* who, bool force) const
             return false;
     }
 
+	// LASYAN3: No aggro for grey creatures
+		if (who->m_ControlledByPlayer && sWorld->getBoolConfig(CONFIG_NO_GREY_AGGRO))
+		{
+			uint32 playerlevel = who->getLevelForTarget(this);
+			uint32 creaturelevel = getLevelForTarget(who);
+			if (creaturelevel <= Trinity::XP::GetGrayLevel(playerlevel))
+				return false;
+		}
+
     if (!CanCreatureAttack(who, force))
         return false;
 
@@ -1455,7 +1464,7 @@ void Creature::setDeathState(DeathState s)
     if (s == JUST_DIED)
     {
         m_corpseRemoveTime = time(NULL) + m_corpseDelay;
-        m_respawnTime = time(NULL) + m_respawnDelay + m_corpseDelay;
+		m_respawnTime = time(NULL) + (m_respawnDelay / sWorld->getFloatConfig(CONFIG_RESPAWNSPEED)) + m_corpseDelay;
 
         // always save boss respawn time at death to prevent crash cheating
         if (sWorld->getBoolConfig(CONFIG_SAVE_RESPAWN_TIME_IMMEDIATELY) || isWorldBoss())

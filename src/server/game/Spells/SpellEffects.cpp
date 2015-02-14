@@ -5163,6 +5163,9 @@ void Spell::EffectTransmitted(SpellEffIndex effIndex)
                 case 3: lastSec = 17; break;
             }
 
+			if (sWorld->getBoolConfig(CONFIG_FAST_FISHING))
+				lastSec = 17;
+
             duration = duration - lastSec*IN_MILLISECONDS + FISHING_BOBBER_READY_TIME*IN_MILLISECONDS;
             break;
         }

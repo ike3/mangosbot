@@ -92,18 +92,18 @@ AiPlayerbot.CommandPrefix =
 #AiPlayerbot.MediumMana = 40
 
 # Enable random bot system
-#AiPlayerbot.RandomBotAutologin = 1
+AiPlayerbot.RandomBotAutologin = 1
 
 # Random bot default strategies (applied after defaults)
 #AiPlayerbot.RandomBotCombatStrategies = +dps,+attack weak
 #AiPlayerbot.RandomBotNonCombatStrategies = +grind,+move random,+loot
 
 # Create random bot characters automatically
-#AiPlayerbot.RandomBotAutoCreate = 1
+AiPlayerbot.RandomBotAutoCreate = 1
 
 # Random bot count
-#AiPlayerbot.MinRandomBots = 50
-#AiPlayerbot.MaxRandomBots = 200
+AiPlayerbot.MinRandomBots = 20
+AiPlayerbot.MaxRandomBots = 40
 #AiPlayerbot.RandomBotMinLevel = 1
 #AiPlayerbot.RandomBotMaxLevel = 255 (ignored if more than MaxPlayerLevel mangosd.conf value)
 
@@ -118,7 +118,7 @@ AiPlayerbot.CommandPrefix =
 #AiPlayerbot.RandomBotGuildCount = 50
 
 # Guild Task system
-#AiPlayerbot.EnableGuildTasks = 1
+AiPlayerbot.EnableGuildTasks = 0
 
 # How often tasks are changed
 #AiPlayerbot.MinGuildTaskChangeTime = 172800

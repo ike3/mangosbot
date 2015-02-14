@@ -55,6 +55,941 @@ void PlayerbotFactory::CleanRandomize()
     Randomize(false);
 }
 
+// FEYZEE: new functions used by init=high80 command
+void PlayerbotFactory::AddEquipment(uint8 Slot, uint32 ItemId)
+{
+    uint16 dest;
+    if (!CanEquipUnseenItem(Slot, dest, ItemId))
+        return;
+    Item* newItem = bot->EquipNewItem(dest, ItemId, true);
+    if (newItem)
+    {
+        newItem->AddToWorld();
+        newItem->AddToUpdateQueueOf(bot);
+        bot->AutoUnequipOffhandIfNeed();
+    }
+}
+
+void PlayerbotFactory::InitHunterPet()
+{
+    if (bot->getClass() != CLASS_HUNTER)
+        return;
+    Pet* pet = bot->GetPet();
+
+    if (!pet)
+    {
+        Map* map = bot->GetMap();
+        if (!map)
+            return;
+
+        vector<uint32> ids;
+        CreatureTemplateContainer const* creatureTemplateContainer = sObjectMgr->GetCreatureTemplates();
+        for (CreatureTemplateContainer::const_iterator i = creatureTemplateContainer->begin(); i != creatureTemplateContainer->end(); ++i)
+        {
+            CreatureTemplate const& co = i->second;
+            if (!co.IsTameable(false))
+                continue;
+
+            if (co.minlevel > bot->getLevel())
+                continue;
+
+            PetLevelInfo const* petInfo = sObjectMgr->GetPetLevelInfo(co.Entry, bot->getLevel());
+            if (!petInfo)
+                continue;
+
+            ids.push_back(i->first);
+        }
+
+        if (ids.empty())
+        {
+            sLog->outMessage("playerbot", LOG_LEVEL_ERROR, "No pets available for bot %s (%d level)", bot->GetName().c_str(), bot->getLevel());
+            return;
+        }
+
+        for (int i = 0; i < 100; i++)
+        {
+            int index = urand(0, ids.size() - 1);
+            CreatureTemplate const* co = sObjectMgr->GetCreatureTemplate(ids[index]);
+
+            PetLevelInfo const* petInfo = sObjectMgr->GetPetLevelInfo(co->Entry, bot->getLevel());
+            if (!petInfo)
+                continue;
+
+            uint32 guid = sObjectMgr->GenerateLowGuid(HIGHGUID_PET);
+            pet = new Pet(bot, HUNTER_PET);
+            if (!pet->Create(guid, map, 0, ids[index], 0))
+            {
+                delete pet;
+                pet = NULL;
+                continue;
+            }
+
+            pet->SetPosition(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ(), bot->GetOrientation());
+            pet->setFaction(bot->getFaction());
+            pet->SetLevel(bot->getLevel());
+            bot->SetPetGUID(pet->GetGUID());
+            bot->GetMap()->AddToMap(pet->ToCreature());
+            bot->SetMinion(pet, true);
+            pet->InitTalentForLevel();
+            bot->PetSpellInitialize();
+            bot->InitTamedPet(pet, bot->getLevel(), 0);
+
+            sLog->outMessage("playerbot", LOG_LEVEL_DEBUG,  "Bot %s: assign pet %d (%d level)", bot->GetName().c_str(), co->Entry, bot->getLevel());
+            pet->SavePetToDB(PET_SAVE_AS_CURRENT);
+            break;
+        }
+    }
+
+    if (!pet)
+    {
+        sLog->outMessage("playerbot", LOG_LEVEL_ERROR, "Cannot create pet for bot %s", bot->GetName().c_str());
+        return;
+    }
+
+    for (PetSpellMap::const_iterator itr = pet->m_spells.begin(); itr != pet->m_spells.end(); ++itr)
+    {
+        if(itr->second.state == PETSPELL_REMOVED)
+            continue;
+
+        uint32 spellId = itr->first;
+        const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+        if (spellInfo->IsPassive())
+            continue;
+
+        pet->ToggleAutocast(spellInfo, true);
+    }
+}
+
+void PlayerbotFactory::CleanBuild()
+{
+    uint8 BotClass;
+    uint8 BotRace;
+    BotClass = bot->getClass();
+    BotRace = bot->getRace();
+    if (!itemQuality)
+        itemQuality = urand(ITEM_QUALITY_RARE, ITEM_QUALITY_EPIC);
+    if (bot->isDead())
+        bot->ResurrectPlayer(1.0f, false);
+    bot->CombatStop(true);
+    bot->SetLevel(80);
+    bot->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_HIDE_HELM);
+    bot->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_HIDE_CLOAK);
+    bot->ResetTalents(true);
+    ClearSpells();
+    ClearInventory();
+    bot->SaveToDB();
+    InitQuests();
+    // quest rewards boost bot level, so reduce back
+    bot->SetLevel(80);
+    ClearInventory();
+    bot->SetUInt32Value(PLAYER_XP, 0);
+    CancelAuras();
+    bot->SaveToDB();
+    InitAvailableSpells();
+    switch (bot->getClass())
+    {
+        case CLASS_WARRIOR:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_PALADIN:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            //bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            //bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_MAGE:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            //bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            //bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            //bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_PRIEST:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            //bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            //bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            //bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_WARLOCK:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            //bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            //bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            //bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_HUNTER:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            //bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_ROGUE:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_DEATH_KNIGHT:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            //bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            //bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_SHAMAN:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            //bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            //bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            //bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+        case CLASS_DRUID:
+            bot->SetSkill(SKILL_DEFENSE, 0, 400, 400);
+            //bot->SetSkill(SKILL_SWORDS, 0, 400, 400);
+            //bot->SetSkill(SKILL_AXES, 0, 400, 400);
+            //bot->SetSkill(SKILL_BOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_GUNS, 0, 400, 400);
+            bot->SetSkill(SKILL_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_SWORDS, 0, 400, 400);
+            bot->SetSkill(SKILL_STAVES, 0, 400, 400);
+            bot->SetSkill(SKILL_2H_MACES, 0, 400, 400);
+            //bot->SetSkill(SKILL_2H_AXES, 0, 400, 400);
+            bot->SetSkill(SKILL_DAGGERS, 0, 400, 400);
+            //bot->SetSkill(SKILL_THROWN, 0, 400, 400);
+            //bot->SetSkill(SKILL_CROSSBOWS, 0, 400, 400);
+            //bot->SetSkill(SKILL_WANDS, 0, 400, 400);
+            bot->SetSkill(SKILL_POLEARMS, 0, 400, 400);
+            //bot->SetSkill(SKILL_FIST_WEAPONS, 0, 400, 400);
+            bot->SetSkill(SKILL_UNARMED, 0, 400, 400);
+            break;
+    }
+    bot->SetSkill(SKILL_RIDING, 0, 300, 300);
+    switch (bot->getClass())
+    {
+        case CLASS_DEATH_KNIGHT:
+        case CLASS_WARRIOR:
+        case CLASS_PALADIN:
+            bot->SetSkill(SKILL_PLATE_MAIL, 0, 1, 1);
+            break;
+        case CLASS_SHAMAN:
+        case CLASS_HUNTER:
+            bot->SetSkill(SKILL_MAIL, 0, 1, 1);
+            break;
+    }
+    for (int i = 0; i < sizeof(tradeSkills) / sizeof(uint32); ++i)
+    {
+        bot->SetSkill(tradeSkills[i], 0, 0, 0);
+    }
+    bot->SetSkill(SKILL_FIRST_AID, 0, 450, 450);
+    bot->SetSkill(SKILL_FISHING, 0, 450, 450);
+    bot->SetSkill(SKILL_COOKING, 0, 450, 450);
+    switch (bot->getClass())
+    {
+        case CLASS_WARRIOR:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(1); // Fury
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(0); // Arms
+            }
+            break;
+        case CLASS_PALADIN:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(1); // Protection
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(2); // Retribution
+            }
+            break;
+        case CLASS_MAGE:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(0); // Arcane
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(1); // Fire
+            }
+            break;
+        case CLASS_PRIEST:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(1); // Holy
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(0); // Discipline
+            }
+            break;
+        case CLASS_WARLOCK:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(0); // Affliction
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(2); // Destruction
+            }
+            break;
+        case CLASS_HUNTER:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(1); // Marksmanship
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(0); // Beast Mastery
+            }
+            break;
+        case CLASS_ROGUE:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(1); // Combat
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(0); // Assassination
+            }
+            break;
+        case CLASS_DEATH_KNIGHT:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(1); // Frost
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(0); // Blood
+            }
+            break;
+        case CLASS_SHAMAN:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(2); // Restoration
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(1); // Enhancement
+            }
+            break;
+        case CLASS_DRUID:
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() <= 6)
+                    break;
+                InitTalents(2); // Restoration
+            }
+            for (uint8 i = 0; i < 15; i++)
+            {
+                if (bot->GetFreeTalentPoints() == 0)
+                    break;
+                InitTalents(0); // Balance
+            }
+            break;
+    }
+    InitAvailableSpells();
+    // Cold Weather Flying
+    bot->LearnSpell(54197, false);
+    // Unlearn Fade
+    if (bot->getClass() == CLASS_PRIEST)
+    {
+        bot->RemoveSpell(586, false, false);
+    }
+    // Learn Death Gate
+    if (bot->getClass() == CLASS_DEATH_KNIGHT)
+    {
+        bot->LearnSpell(50977, false);
+    }
+    // Mounts
+    switch (bot->getRace())
+    {
+        case RACE_HUMAN:
+            bot->LearnSpell(23228, false);
+            bot->LearnSpell(32242, false);
+            break;
+        case RACE_ORC:
+            bot->LearnSpell(23251, false);
+            bot->LearnSpell(32295, false);
+            break;
+        case RACE_DWARF:
+            bot->LearnSpell(23240, false);
+            bot->LearnSpell(32242, false);
+            break;
+        case RACE_NIGHTELF:
+            bot->LearnSpell(23221, false);
+            bot->LearnSpell(32242, false);
+            break;
+        case RACE_UNDEAD_PLAYER:
+            bot->LearnSpell(17465, false);
+            bot->LearnSpell(32295, false);
+            break;
+        case RACE_TAUREN:
+            bot->LearnSpell(23247, false);
+            bot->LearnSpell(32295, false);
+            break;
+        case RACE_GNOME:
+            bot->LearnSpell(23223, false);
+            bot->LearnSpell(32242, false);
+            break;
+        case RACE_TROLL:
+            bot->LearnSpell(23243, false);
+            bot->LearnSpell(32295, false);
+            break;
+        case RACE_BLOODELF:
+            bot->LearnSpell(35025, false);
+            bot->LearnSpell(32295, false);
+            break;
+        case RACE_DRAENEI:
+            bot->LearnSpell(35713, false);
+            bot->LearnSpell(32242, false);
+            break;
+    }
+    UpdateTradeSkills();
+    bot->SaveToDB();
+    ClearAllInventory();
+    switch (bot->getClass())
+    {
+        case CLASS_WARRIOR:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51227); // Sanctified Ymirjar Lord's Helmet
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50647); // Ahn'kahar Onyx Neckguard
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51229); // Sanctified Ymirjar Lord's Shoulderplates
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51225); // Sanctified Ymirjar Lord's Battleplate
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50620); // Coldwraith Links
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51228); // Sanctified Ymirjar Lord's Legplates
+            AddEquipment(EQUIPMENT_SLOT_FEET, 54578); // Apocalypse's Advance
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 50659); // Polar Bear Claw Bracers
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51226); // Sanctified Ymirjar Lord's Gauntlets
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 50657); // Skeleton Lord's Circle
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50693); // Might of Blight
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 40684); // Mirror of Truth
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 47214); // Banner of Victory
+            AddEquipment(EQUIPMENT_SLOT_BACK, 50677); // Winding Sheet
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 50730); // Glorenzelg, High-Blade of the Silver Hand
+            //AddEquipment(EQUIPMENT_SLOT_OFFHAND, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 51535); // Wrathful Gladiator's War Edge
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_PALADIN:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51266); // Sanctified Lightsworn Faceguard
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50627); // Noose of Malachite
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51269); // Sanctified Lightsworn Shoulderguards
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51265); // Sanctified Lightsworn Chestguard
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50691); // Belt of Broken Bones
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51268); // Sanctified Lightsworn Legguards
+            AddEquipment(EQUIPMENT_SLOT_FEET, 54579); // Treads of Impending Resurrection
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 50611); // Bracers of Dark Reckoning
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51267); // Sanctified Lightsworn Handguards
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 50622); // Devium's Eternally Cold Ring
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50642); // Juggernaut Band
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 50356); // Corroded Skeleton Key
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 47735); // Glyph of Indomitability
+            AddEquipment(EQUIPMENT_SLOT_BACK, 50718); // Royal Crimson Cloak
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 51947); // Troggbane, Axe of the Frostborne King
+            AddEquipment(EQUIPMENT_SLOT_OFFHAND, 50729); // Icecrown Glacial Wall
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 50461); // Libram of the Eternal Tower
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_MAGE:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51281); // Sanctified Bloodmage Hood
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50700); // Holiday's Grace
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51284); // Sanctified Bloodmage Shoulderpads
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51283); // Sanctified Bloodmage Robe
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50613); // Crushing Coldwraith Belt
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51282); // Sanctified Bloodmage Leggings
+            AddEquipment(EQUIPMENT_SLOT_FEET, 51850); // Pale Corpse Boots
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 50651); // The Lady's Brittle Bracers
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51280); // Sanctified Bloodmage Gloves
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 50610); // Marrowgar's Frigid Eye
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50644); // Ring of Maddening Whispers
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 45490); // Pandora's Plea
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 45929); // Sif's Remembrance
+            AddEquipment(EQUIPMENT_SLOT_BACK, 54583); // Cloak of Burning Dusk
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 50704); // Rigormortis
+            AddEquipment(EQUIPMENT_SLOT_OFFHAND, 50719); // Shadow Silk Spindle
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 50631); // Nightmare Ender
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_PRIEST:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51261); // Sanctified Crimson Acolyte Hood
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50700); // Holiday's Grace
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51264); // Sanctified Crimson Acolyte Shoulderpads
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51263); // Sanctified Crimson Acolyte Robe
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50702); // Lingering Illness
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51262); // Sanctified Crimson Acolyte Leggings
+            AddEquipment(EQUIPMENT_SLOT_FEET, 51850); // Pale Corpse Boots
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 50686); // Death Surgeon's Sleeves
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51260); // Sanctified Crimson Acolyte Gloves
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 54585); // Ring of Phased Regeneration
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50610); // Marrowgar's Frigid Eye
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 45490); // Pandora's Plea
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 45929); // Sif's Remembrance
+            AddEquipment(EQUIPMENT_SLOT_BACK, 50668); // Greatcloak of the Turned Champion
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 50685); // Trauma
+            AddEquipment(EQUIPMENT_SLOT_OFFHAND, 50635); // Sundial of Eternal Dusk
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 50631); // Nightmare Ender
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_WARLOCK:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51231); // Sanctified Dark Coven Hood
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50700); // Holiday's Grace
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51234); // Sanctified Dark Coven Shoulderpads
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51233); // Sanctified Dark Coven Robe
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50613); // Crushing Coldwraith Belt
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51232); // Sanctified Dark Coven Leggings
+            AddEquipment(EQUIPMENT_SLOT_FEET, 51850); // Pale Corpse Boots
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 50651); // The Lady's Brittle Bracers
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51230); // Sanctified Dark Coven Gloves
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 50610); // Marrowgar's Frigid Eye
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50644); // Ring of Maddening Whispers
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 45490); // Pandora's Plea
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 45929); // Sif's Remembrance
+            AddEquipment(EQUIPMENT_SLOT_BACK, 54583); // Cloak of Burning Dusk
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 50704); // Rigormortis
+            AddEquipment(EQUIPMENT_SLOT_OFFHAND, 50719); // Shadow Silk Spindle
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 50631); // Nightmare Ender
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_HUNTER:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51286); // Sanctified Ahn'Kahar Blood Hunter's Headpiece
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50633); // Sindragosa's Cruel Claw
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51288); // Sanctified Ahn'Kahar Blood Hunter's Spaulders
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51289); // Sanctified Ahn'Kahar Blood Hunter's Tunic
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50688); // Nerub'ar Stalker's Cord
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51287); // Sanctified Ahn'Kahar Blood Hunter's Legguards
+            AddEquipment(EQUIPMENT_SLOT_FEET, 54577); // Returning Footfalls
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 50655); // Scourge Hunter's Vambraces
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51285); // Sanctified Ahn'Kahar Blood Hunter's Handguards
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 50618); // Frostbrood Sapphire Ring
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50678); // Seal of Many Mouths
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 40684); // Mirror of Truth
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 50355); // Herkuml War Token
+            AddEquipment(EQUIPMENT_SLOT_BACK, 50653); // Shadowvault Slayer's Cloak
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 47515); // Decimation
+            //AddEquipment(EQUIPMENT_SLOT_OFFHAND, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 50733); // Fal'inrush, Defender of Quel'thalas
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_ROGUE:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51252); // Sanctified Shadowblade Helmet
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50633); // Sindragosa's Cruel Claw
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51254); // Sanctified Shadowblade Pauldrons
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51250); // Sanctified Shadowblade Breastplate
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50707); // Astrylian's Sutured Cinch
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51253); // Sanctified Shadowblade Legplates
+            AddEquipment(EQUIPMENT_SLOT_FEET, 50607); // Frostbitten Fur Boots
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 54580); // Umbrage Armbands
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51251); // Sanctified Shadowblade Gauntlets
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 50618); // Frostbrood Sapphire Ring
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50678); // Seal of Many Mouths
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 40684); // Mirror of Truth
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 50355); // Herkuml War Token
+            AddEquipment(EQUIPMENT_SLOT_BACK, 50653); // Shadowvault Slayer's Cloak
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 51942); // Stormfury, Black Blade of the Betrayer
+            AddEquipment(EQUIPMENT_SLOT_OFFHAND, 51942); // Stormfury, Black Blade of the Betrayer
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 51535); // Wrathful Gladiator's War Edge
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_DEATH_KNIGHT:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51312); // Sanctified Scourgelord Helmet
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50647); // Ahn'kahar Onyx Neckguard
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51314); // Sanctified Scourgelord Shoulderplates
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51310); // Sanctified Scourgelord Battleplate
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50620); // Coldwraith Links
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51313); // Sanctified Scourgelord Legplates
+            AddEquipment(EQUIPMENT_SLOT_FEET, 54578); // Apocalypse's Advance
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 50659); // Polar Bear Claw Bracers
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51311); // Sanctified Scourgelord Gauntlets
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 50657); // Skeleton Lord's Circle
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50693); // Might of Blight
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 40684); // Mirror of Truth
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 47214); // Banner of Victory
+            AddEquipment(EQUIPMENT_SLOT_BACK, 50677); // Winding Sheet
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 50730); // Glorenzelg, High-Blade of the Silver Hand
+            //AddEquipment(EQUIPMENT_SLOT_OFFHAND, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 47673); // Sigil of Virulence
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_SHAMAN:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51247); // Sanctified Frost Witch's Headpiece
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50700); // Holiday's Grace
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51245); // Sanctified Frost Witch's Spaulders
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51249); // Sanctified Frost Witch's Tunic
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50671); // Belt of the Blood Nova
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51246); // Sanctified Frost Witch's Legguards
+            AddEquipment(EQUIPMENT_SLOT_FEET, 50652); // Necrophotic Greaves
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 50655); // Scourge Hunter's Vambraces
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51248); // Sanctified Frost Witch's Handguards
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 54585); // Ring of Phased Regeneration
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50610); // Marrowgar's Frigid Eye
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 45490); // Pandora's Plea
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 45929); // Sif's Remembrance
+            AddEquipment(EQUIPMENT_SLOT_BACK, 50668); // Greatcloak of the Turned Champion
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 50685); // Trauma
+            AddEquipment(EQUIPMENT_SLOT_OFFHAND, 50635); // Sundial of Eternal Dusk
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 47665); // Totem of Calming Tides
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+        case CLASS_DRUID:
+            AddEquipment(EQUIPMENT_SLOT_HEAD, 51302); // Sanctified Lasherweave Helmet
+            AddEquipment(EQUIPMENT_SLOT_NECK, 50700); // Holiday's Grace
+            AddEquipment(EQUIPMENT_SLOT_SHOULDERS, 51304); // Sanctified Lasherweave Pauldrons
+            //AddEquipment(EQUIPMENT_SLOT_BODY, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_CHEST, 51300); // Sanctified Lasherweave Robes
+            AddEquipment(EQUIPMENT_SLOT_WAIST, 50705); // Professor's Bloodied Smock
+            AddEquipment(EQUIPMENT_SLOT_LEGS, 51303); // Sanctified Lasherweave Legplates
+            AddEquipment(EQUIPMENT_SLOT_FEET, 50665); // Boots of Unnatural Growth
+            AddEquipment(EQUIPMENT_SLOT_WRISTS, 54584); // Phaseshifter's Bracers
+            AddEquipment(EQUIPMENT_SLOT_HANDS, 51301); // Sanctified Lasherweave Gauntlets
+            AddEquipment(EQUIPMENT_SLOT_FINGER1, 54585); // Ring of Phased Regeneration
+            AddEquipment(EQUIPMENT_SLOT_FINGER2, 50610); // Marrowgar's Frigid Eye
+            AddEquipment(EQUIPMENT_SLOT_TRINKET1, 45490); // Pandora's Plea
+            AddEquipment(EQUIPMENT_SLOT_TRINKET2, 45929); // Sif's Remembrance
+            AddEquipment(EQUIPMENT_SLOT_BACK, 50668); // Greatcloak of the Turned Champion
+            AddEquipment(EQUIPMENT_SLOT_MAINHAND, 50731); // Archus, Greatstaff of Antonidas
+            //AddEquipment(EQUIPMENT_SLOT_OFFHAND, XXXXX); // Empty
+            AddEquipment(EQUIPMENT_SLOT_RANGED, 47670); // Idol of Lunar Fury
+            //AddEquipment(EQUIPMENT_SLOT_TABARD, XXXXX); // Empty
+            break;
+    }
+    for (uint8 slot = INVENTORY_SLOT_BAG_START; slot < INVENTORY_SLOT_BAG_END; ++slot)
+    {
+        Item* oldItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        if (oldItem)
+        {
+            bot->RemoveItem(INVENTORY_SLOT_BAG_0, slot, true);
+            oldItem->DestroyForPlayer(bot, false);
+        }
+        uint32 newItemId = 38082; // Gigantique Bag
+        uint16 dest;
+        if (!CanEquipUnseenItem(slot, dest, newItemId))
+            continue;
+        Item* newItem = bot->EquipNewItem(dest, newItemId, true);
+        if (newItem)
+        {
+            newItem->AddToWorld();
+            newItem->AddToUpdateQueueOf(bot);
+        }
+    }
+    uint32 itemId;
+    ItemTemplate const* proto;
+    itemId = 43000; // Drangonfin Filet
+    proto = sObjectMgr->GetItemTemplate(itemId);
+    bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+    bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+    bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+    itemId = 33447; // Runic Healing Potion
+    proto = sObjectMgr->GetItemTemplate(itemId);
+    bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+    itemId = 34722; // Heavy Frostweave Bandage
+    proto = sObjectMgr->GetItemTemplate(itemId);
+    bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+    switch (bot->getClass())
+    {
+        case CLASS_WARRIOR:
+            break;
+        case CLASS_PALADIN:
+            itemId = 21177; // Symbol of Kings
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17033; // Symbol of Divinity
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            break;
+        case CLASS_MAGE:
+            itemId = 17020; // Arcane Powder
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17032; // Rune of Portals
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17031; // Rune of Teleportation
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17056; // Light Feather
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            break;
+        case CLASS_PRIEST:
+            itemId = 17028; // Holy Candle
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17029; // Sacred Candle
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17056; // Light Feather
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 44615; // Devout Candle
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            break;
+        case CLASS_WARLOCK:
+            itemId = 6265; // Soul Shard
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, 20);
+            break;
+        case CLASS_HUNTER:
+            itemId = 52021; // Iceblade Arrow
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, 1000);
+            bot->StoreNewItemInBestSlots(itemId, 1000);
+            bot->StoreNewItemInBestSlots(itemId, 1000);
+            bot->StoreNewItemInBestSlots(itemId, 1000);
+            bot->StoreNewItemInBestSlots(itemId, 1000);
+            bot->SetAmmo(itemId);
+            break;
+        case CLASS_ROGUE:
+            break;
+        case CLASS_DEATH_KNIGHT:
+            itemId = 6948; // Hearthstone
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, 1);
+            break;
+        case CLASS_SHAMAN:
+            itemId = 17057; // Shiny Fish Scales
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17058; // Fish Oil
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17030; // Ankh
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            //itemId = 5175; // Earth Totem
+            //proto = sObjectMgr->GetItemTemplate(itemId);
+            //bot->StoreNewItemInBestSlots(itemId, 1);
+            //itemId = 5176; // Fire Totem
+            //proto = sObjectMgr->GetItemTemplate(itemId);
+            //bot->StoreNewItemInBestSlots(itemId, 1);
+            //itemId = 5177; // Water Totem
+            //proto = sObjectMgr->GetItemTemplate(itemId);
+            //bot->StoreNewItemInBestSlots(itemId, 1);
+            //itemId = 5178; // Air Totem
+            //proto = sObjectMgr->GetItemTemplate(itemId);
+            //bot->StoreNewItemInBestSlots(itemId, 1);
+            break;
+        case CLASS_DRUID:
+            itemId = 17034; // Maple Seed
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17035; // Stranglethorn Seed
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17036; // Ashwood Seed
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17037; // Hornbeam Seed
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17038; // Ironwood Seed
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 22147; // Flintweed Seed
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 44614; // Starleaf Seed
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17021; // Wild Berries
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 17026; // Wild Thornroot
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 22148; // Wild Quillvine
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            itemId = 44605; // Wild Spineleaf
+            proto = sObjectMgr->GetItemTemplate(itemId);
+            bot->StoreNewItemInBestSlots(itemId, proto->GetMaxStackSize());
+            break;
+    }
+    for (uint32 slotIndex = 0; slotIndex < MAX_GLYPH_SLOT_INDEX; ++slotIndex)
+    {
+        bot->SetGlyph(slotIndex, 0);
+    }
+    InitHunterPet();
+    bot->SetMoney(5000000);
+    bot->DurabilityRepairAll(false, 1.0f, false);
+    bot->SetFullHealth();
+    bot->SetPvP(true);
+    if (bot->GetMaxPower(POWER_MANA) > 0)
+        bot->SetPower(POWER_MANA, bot->GetMaxPower(POWER_MANA));
+    if (bot->GetMaxPower(POWER_ENERGY) > 0)
+        bot->SetPower(POWER_ENERGY, bot->GetMaxPower(POWER_ENERGY));
+    bot->SaveToDB();
+}
+
 void PlayerbotFactory::Prepare()
 {
     if (!itemQuality)
@@ -974,22 +1909,200 @@ void PlayerbotFactory::UpdateTradeSkills()
 void PlayerbotFactory::InitSkills()
 {
     uint32 maxValue = level * 5;
-    SetRandomSkill(SKILL_DEFENSE);
-    SetRandomSkill(SKILL_SWORDS);
-    SetRandomSkill(SKILL_AXES);
-    SetRandomSkill(SKILL_BOWS);
-    SetRandomSkill(SKILL_GUNS);
-    SetRandomSkill(SKILL_MACES);
-    SetRandomSkill(SKILL_2H_SWORDS);
-    SetRandomSkill(SKILL_STAVES);
-    SetRandomSkill(SKILL_2H_MACES);
-    SetRandomSkill(SKILL_2H_AXES);
-    SetRandomSkill(SKILL_DAGGERS);
-    SetRandomSkill(SKILL_THROWN);
-    SetRandomSkill(SKILL_CROSSBOWS);
-    SetRandomSkill(SKILL_WANDS);
-    SetRandomSkill(SKILL_POLEARMS);
-    SetRandomSkill(SKILL_FIST_WEAPONS);
+    // FEYZEE: add skills based on class
+    switch (bot->getClass())
+    {
+        case CLASS_WARRIOR:
+            SetRandomSkill(SKILL_DEFENSE);
+            SetRandomSkill(SKILL_SWORDS);
+            SetRandomSkill(SKILL_AXES);
+            SetRandomSkill(SKILL_BOWS);
+            SetRandomSkill(SKILL_GUNS);
+            SetRandomSkill(SKILL_MACES);
+            SetRandomSkill(SKILL_2H_SWORDS);
+            SetRandomSkill(SKILL_STAVES);
+            SetRandomSkill(SKILL_2H_MACES);
+            SetRandomSkill(SKILL_2H_AXES);
+            SetRandomSkill(SKILL_DAGGERS);
+            SetRandomSkill(SKILL_THROWN);
+            SetRandomSkill(SKILL_CROSSBOWS);
+            //SetRandomSkill(SKILL_WANDS);
+            SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_PALADIN:
+            SetRandomSkill(SKILL_DEFENSE);
+            SetRandomSkill(SKILL_SWORDS);
+            SetRandomSkill(SKILL_AXES);
+            //SetRandomSkill(SKILL_BOWS);
+            //SetRandomSkill(SKILL_GUNS);
+            SetRandomSkill(SKILL_MACES);
+            SetRandomSkill(SKILL_2H_SWORDS);
+            //SetRandomSkill(SKILL_STAVES);
+            SetRandomSkill(SKILL_2H_MACES);
+            SetRandomSkill(SKILL_2H_AXES);
+            //SetRandomSkill(SKILL_DAGGERS);
+            //SetRandomSkill(SKILL_THROWN);
+            //SetRandomSkill(SKILL_CROSSBOWS);
+            //SetRandomSkill(SKILL_WANDS);
+            SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_MAGE:
+            SetRandomSkill(SKILL_DEFENSE);
+            SetRandomSkill(SKILL_SWORDS);
+            //SetRandomSkill(SKILL_AXES);
+            //SetRandomSkill(SKILL_BOWS);
+            //SetRandomSkill(SKILL_GUNS);
+            //SetRandomSkill(SKILL_MACES);
+            //SetRandomSkill(SKILL_2H_SWORDS);
+            SetRandomSkill(SKILL_STAVES);
+            //SetRandomSkill(SKILL_2H_MACES);
+            //SetRandomSkill(SKILL_2H_AXES);
+            SetRandomSkill(SKILL_DAGGERS);
+            //SetRandomSkill(SKILL_THROWN);
+            //SetRandomSkill(SKILL_CROSSBOWS);
+            SetRandomSkill(SKILL_WANDS);
+            //SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_PRIEST:
+            SetRandomSkill(SKILL_DEFENSE);
+            //SetRandomSkill(SKILL_SWORDS);
+            //SetRandomSkill(SKILL_AXES);
+            //SetRandomSkill(SKILL_BOWS);
+            //SetRandomSkill(SKILL_GUNS);
+            SetRandomSkill(SKILL_MACES);
+            //SetRandomSkill(SKILL_2H_SWORDS);
+            SetRandomSkill(SKILL_STAVES);
+            //SetRandomSkill(SKILL_2H_MACES);
+            //SetRandomSkill(SKILL_2H_AXES);
+            SetRandomSkill(SKILL_DAGGERS);
+            //SetRandomSkill(SKILL_THROWN);
+            //SetRandomSkill(SKILL_CROSSBOWS);
+            SetRandomSkill(SKILL_WANDS);
+            //SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_WARLOCK:
+            SetRandomSkill(SKILL_DEFENSE);
+            SetRandomSkill(SKILL_SWORDS);
+            //SetRandomSkill(SKILL_AXES);
+            //SetRandomSkill(SKILL_BOWS);
+            //SetRandomSkill(SKILL_GUNS);
+            //SetRandomSkill(SKILL_MACES);
+            //SetRandomSkill(SKILL_2H_SWORDS);
+            SetRandomSkill(SKILL_STAVES);
+            //SetRandomSkill(SKILL_2H_MACES);
+            //SetRandomSkill(SKILL_2H_AXES);
+            SetRandomSkill(SKILL_DAGGERS);
+            //SetRandomSkill(SKILL_THROWN);
+            //SetRandomSkill(SKILL_CROSSBOWS);
+            SetRandomSkill(SKILL_WANDS);
+            //SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_HUNTER:
+            SetRandomSkill(SKILL_DEFENSE);
+            SetRandomSkill(SKILL_SWORDS);
+            SetRandomSkill(SKILL_AXES);
+            SetRandomSkill(SKILL_BOWS);
+            SetRandomSkill(SKILL_GUNS);
+            //SetRandomSkill(SKILL_MACES);
+            SetRandomSkill(SKILL_2H_SWORDS);
+            SetRandomSkill(SKILL_STAVES);
+            //SetRandomSkill(SKILL_2H_MACES);
+            SetRandomSkill(SKILL_2H_AXES);
+            SetRandomSkill(SKILL_DAGGERS);
+            SetRandomSkill(SKILL_THROWN);
+            SetRandomSkill(SKILL_CROSSBOWS);
+            //SetRandomSkill(SKILL_WANDS);
+            SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_ROGUE:
+            SetRandomSkill(SKILL_DEFENSE);
+            SetRandomSkill(SKILL_SWORDS);
+            SetRandomSkill(SKILL_AXES);
+            SetRandomSkill(SKILL_BOWS);
+            SetRandomSkill(SKILL_GUNS);
+            SetRandomSkill(SKILL_MACES);
+            //SetRandomSkill(SKILL_2H_SWORDS);
+            //SetRandomSkill(SKILL_STAVES);
+            //SetRandomSkill(SKILL_2H_MACES);
+            //SetRandomSkill(SKILL_2H_AXES);
+            SetRandomSkill(SKILL_DAGGERS);
+            SetRandomSkill(SKILL_THROWN);
+            SetRandomSkill(SKILL_CROSSBOWS);
+            //SetRandomSkill(SKILL_WANDS);
+            //SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_DEATH_KNIGHT:
+            SetRandomSkill(SKILL_DEFENSE);
+            SetRandomSkill(SKILL_SWORDS);
+            SetRandomSkill(SKILL_AXES);
+            //SetRandomSkill(SKILL_BOWS);
+            //SetRandomSkill(SKILL_GUNS);
+            SetRandomSkill(SKILL_MACES);
+            SetRandomSkill(SKILL_2H_SWORDS);
+            //SetRandomSkill(SKILL_STAVES);
+            SetRandomSkill(SKILL_2H_MACES);
+            SetRandomSkill(SKILL_2H_AXES);
+            //SetRandomSkill(SKILL_DAGGERS);
+            //SetRandomSkill(SKILL_THROWN);
+            //SetRandomSkill(SKILL_CROSSBOWS);
+            //SetRandomSkill(SKILL_WANDS);
+            SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_SHAMAN:
+            SetRandomSkill(SKILL_DEFENSE);
+            //SetRandomSkill(SKILL_SWORDS);
+            SetRandomSkill(SKILL_AXES);
+            //SetRandomSkill(SKILL_BOWS);
+            //SetRandomSkill(SKILL_GUNS);
+            SetRandomSkill(SKILL_MACES);
+            //SetRandomSkill(SKILL_2H_SWORDS);
+            SetRandomSkill(SKILL_STAVES);
+            SetRandomSkill(SKILL_2H_MACES);
+            SetRandomSkill(SKILL_2H_AXES);
+            SetRandomSkill(SKILL_DAGGERS);
+            //SetRandomSkill(SKILL_THROWN);
+            //SetRandomSkill(SKILL_CROSSBOWS);
+            //SetRandomSkill(SKILL_WANDS);
+            //SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+        case CLASS_DRUID:
+            SetRandomSkill(SKILL_DEFENSE);
+            //SetRandomSkill(SKILL_SWORDS);
+            //SetRandomSkill(SKILL_AXES);
+            //SetRandomSkill(SKILL_BOWS);
+            //SetRandomSkill(SKILL_GUNS);
+            SetRandomSkill(SKILL_MACES);
+            //SetRandomSkill(SKILL_2H_SWORDS);
+            SetRandomSkill(SKILL_STAVES);
+            SetRandomSkill(SKILL_2H_MACES);
+            //SetRandomSkill(SKILL_2H_AXES);
+            SetRandomSkill(SKILL_DAGGERS);
+            //SetRandomSkill(SKILL_THROWN);
+            //SetRandomSkill(SKILL_CROSSBOWS);
+            //SetRandomSkill(SKILL_WANDS);
+            SetRandomSkill(SKILL_POLEARMS);
+            //SetRandomSkill(SKILL_FIST_WEAPONS);
+            SetRandomSkill(SKILL_UNARMED);
+            break;
+    }
 
     if (bot->getLevel() >= 70)
         bot->SetSkill(SKILL_RIDING, 0, 300, 300);
@@ -1214,6 +2327,13 @@ void PlayerbotFactory::ClearInventory()
 {
     DestroyItemsVisitor visitor(bot);
     IterateItems(&visitor);
+}
+
+// FEYZEE: new functions used by init=high80 command
+void PlayerbotFactory::ClearAllInventory()
+{
+    DestroyItemsVisitor visitor(bot);
+    IterateItems(&visitor, ITERATE_ALL_ITEMS);
 }
 
 void PlayerbotFactory::InitAmmo()
@@ -1476,7 +2596,8 @@ void PlayerbotFactory::InitInventoryTrade()
 
     if (ids.empty())
     {
-        sLog->outMessage("playerbot", LOG_LEVEL_ERROR, "No trade items available for bot %s (%d level)", bot->GetName().c_str(), bot->getLevel());
+        // FEYZEE: hide error caused by no trade items available
+        //sLog->outMessage("playerbot", LOG_LEVEL_ERROR, "No trade items available for bot %s (%d level)", bot->GetName().c_str(), bot->getLevel());
         return;
     }
 
