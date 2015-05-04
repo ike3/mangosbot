@@ -23,9 +23,6 @@
 #include "LFGQueue.h"
 #include "LFGMgr.h"
 #include "Log.h"
-#include "ObjectMgr.h"
-#include "World.h"
-#include "GroupMgr.h"
 
 #include "../Entities/Player/Player.h"
 
@@ -379,7 +376,7 @@ LfgCompatibility LFGQueue::CheckCompatibility(GuidList check)
     // Group with less that MAXGROUPSIZE members always compatible
     if (check.size() == 1 && numPlayers != MAXGROUPSIZE)
     {
-        TC_LOG_DEBUG("lfg.queue.match.compatibility.check", "Guids: (%s) sigle group. Compatibles", strGuids.c_str());
+        TC_LOG_DEBUG("lfg.queue.match.compatibility.check", "Guids: (%s) single group. Compatibles", strGuids.c_str());
         LfgQueueDataContainer::iterator itQueue = QueueDataStore.find(check.front());
 
         LfgCompatibilityData data(LFG_COMPATIBLES_WITH_LESS_PLAYERS);
@@ -488,6 +485,9 @@ LfgCompatibility LFGQueue::CheckCompatibility(GuidList check)
         return LFG_COMPATIBLES_WITH_LESS_PLAYERS;
     }
 
+    //FEYZEE: disable this code because it effect LFG while grouped
+    //FEYZEE: normally this code seems fine
+    /*
     // playerbot mod
     bool nonBotFound = false;
     for (GuidList::const_iterator it = check.begin(); it != check.end(); ++it)
@@ -502,6 +502,7 @@ LfgCompatibility LFGQueue::CheckCompatibility(GuidList check)
     if (!nonBotFound)
         return LFG_INCOMPATIBLES_HAS_IGNORES;
     // end of playerbot mod
+    */
 
     ObjectGuid gguid = *check.begin();
     proposal.queues = check;

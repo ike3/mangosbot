@@ -79,9 +79,10 @@ void WorldPacketHandlerStrategy::InitTriggers(std::list<TriggerNode*> &triggers)
         "guild invite",
         NextAction::array(0, new NextAction("guild accept", relevance), NULL)));
 
-    triggers.push_back(new TriggerNode(
-        "seldom",
-        NextAction::array(0, new NextAction("lfg leave", relevance), NULL)));
+    // FEYZEE: disable random lfg leave trigger
+    //triggers.push_back(new TriggerNode(
+    //    "seldom",
+    //    NextAction::array(0, new NextAction("lfg leave", relevance), NULL)));
 
 }
 

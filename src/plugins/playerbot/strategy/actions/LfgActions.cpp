@@ -19,7 +19,13 @@ bool LfgJoinAction::Execute(Event event)
     if (bot->isDead())
         return false;
 
-    if (!sRandomPlayerbotMgr.IsRandomBot(bot))
+    // FEYZEE: disable join LFG restriction for playerbots
+    //if (!sRandomPlayerbotMgr.IsRandomBot(bot))
+    //    return false;
+
+    // FEYZEE: add join LFG restriction when grouped
+    Group* group = bot->GetGroup();
+    if (group)
         return false;
 
     if (sLFGMgr->GetState(bot->GetGUID()) != LFG_STATE_NONE)
@@ -41,10 +47,18 @@ uint8 LfgJoinAction::GetRoles()
     switch (bot->getClass())
     {
     case CLASS_DRUID:
+        // FEYZEE: druid LFG issue, join as tank and dps
         if (spec == 2)
             return PLAYER_ROLE_HEALER;
-        else if (spec == 1 && bot->getLevel() >= 40)
-            return PLAYER_ROLE_TANK;
+        //else if (spec == 1 && bot->getLevel() >= 40)
+        //    return PLAYER_ROLE_TANK;
+        else if (spec == 1)
+        {
+            if (bot->getLevel() >= 40)
+                return PLAYER_ROLE_TANK | PLAYER_ROLE_DAMAGE;
+            else
+                return PLAYER_ROLE_DAMAGE;
+        }
         else
             return PLAYER_ROLE_DAMAGE;
         break;
@@ -85,24 +99,29 @@ uint8 LfgJoinAction::GetRoles()
 bool LfgJoinAction::SetRoles()
 {
     sLFGMgr->SetRoles(bot->GetGUID(), GetRoles());
-	return true;
+    return true;
 }
 
 bool LfgJoinAction::JoinProposal()
 {
     ItemCountByQuality visitor;
     IterateItems(&visitor, ITERATE_ITEMS_IN_EQUIP);
-	bool heroic = urand(0, 100) < 50 && (visitor.count[ITEM_QUALITY_EPIC] >= 3 || visitor.count[ITEM_QUALITY_RARE] >= 10) && bot->getLevel() >= 70;
-    bool random = urand(0, 100) < 25;
-    bool raid = !heroic && (urand(0, 100) < 50 && visitor.count[ITEM_QUALITY_EPIC] >= 5 && (bot->getLevel() == 60 || bot->getLevel() == 70 || bot->getLevel() == 80));
+    // FEYZEE: disable probability to join LFG
+    //bool heroic = urand(0, 100) < 50 && (visitor.count[ITEM_QUALITY_EPIC] >= 3 || visitor.count[ITEM_QUALITY_RARE] >= 10) && bot->getLevel() >= 70;
+    bool heroic = ((bot->getLevel() == 70) || (bot->getLevel() == 80)) && (visitor.count[ITEM_QUALITY_EPIC] >= 3 || visitor.count[ITEM_QUALITY_RARE] >= 10);
+    //bool random = urand(0, 100) < 25;
+    bool random = false;
+    //bool raid = !heroic && (urand(0, 100) < 50 && visitor.count[ITEM_QUALITY_EPIC] >= 5 && (bot->getLevel() == 60 || bot->getLevel() == 70 || bot->getLevel() == 80));
+    bool raid = false;
 
     LfgDungeonSet list;
     vector<uint32> idx;
     for (uint32 i = 0; i < sLFGDungeonStore.GetNumRows(); ++i)
     {
         LFGDungeonEntry const* dungeon = sLFGDungeonStore.LookupEntry(i);
-        if (!dungeon || (dungeon->type != LFG_TYPE_RANDOM && dungeon->type != LFG_TYPE_DUNGEON && dungeon->type != LFG_TYPE_HEROIC &&
-                dungeon->type != LFG_TYPE_RAID))
+        //if (!dungeon || (dungeon->type != LFG_TYPE_RANDOM && dungeon->type != LFG_TYPE_DUNGEON && dungeon->type != LFG_TYPE_HEROIC &&
+        //    dungeon->type != LFG_TYPE_RAID))
+        if (!dungeon || (dungeon->type != LFG_TYPE_DUNGEON && dungeon->type != LFG_TYPE_HEROIC))
             continue;
 
         int botLevel = (int)bot->getLevel();
@@ -138,25 +157,25 @@ bool LfgJoinAction::JoinProposal()
 
     uint8 roles = GetRoles();
     if (random)
-	{
+    {
         list.insert(idx[urand(0, idx.size() - 1)]);
         sLFGMgr->JoinLfg(bot, roles, list, "bot");
 
         sLog->outMessage("playerbot", LOG_LEVEL_DEBUG, "Bot %s joined to LFG_TYPE_RANDOM as %d", bot->GetName().c_str(), (uint32)roles);
-		return true;
-	}
+        return true;
+    }
     else if (heroic)
-	{
-		sLog->outMessage("playerbot", LOG_LEVEL_DEBUG, "Bot %s joined to LFG_TYPE_HEROIC_DUNGEON as %d", bot->GetName().c_str(), (uint32)roles);
-	}
+    {
+        sLog->outMessage("playerbot", LOG_LEVEL_DEBUG, "Bot %s joined to LFG_TYPE_HEROIC_DUNGEON as %d", bot->GetName().c_str(), (uint32)roles);
+    }
     else if (raid)
-	{
-		sLog->outMessage("playerbot", LOG_LEVEL_DEBUG, "Bot %s joined to LFG_TYPE_RAID as %d", bot->GetName().c_str(), (uint32)roles);
-	}
+    {
+        sLog->outMessage("playerbot", LOG_LEVEL_DEBUG, "Bot %s joined to LFG_TYPE_RAID as %d", bot->GetName().c_str(), (uint32)roles);
+    }
     else
-	{
-		sLog->outMessage("playerbot", LOG_LEVEL_DEBUG, "Bot %s joined to LFG_TYPE_DUNGEON as %d", bot->GetName().c_str(), (uint32)roles);
-	}
+    {
+        sLog->outMessage("playerbot", LOG_LEVEL_DEBUG, "Bot %s joined to LFG_TYPE_DUNGEON as %d", bot->GetName().c_str(), (uint32)roles);
+    }
 
     sLFGMgr->JoinLfg(bot, roles, list, "bot");
     return true;
@@ -179,15 +198,18 @@ bool LfgAcceptAction::Execute(Event event)
     uint32 id = AI_VALUE(uint32, "lfg proposal");
     if (id)
     {
-        if (bot->IsInCombat() || bot->isDead() || bot->IsFalling())
+        // FEYZEE: changed leave LFG procedure
+        //if (bot->IsInCombat() || bot->isDead() || bot->IsFalling())
+        if (bot->isDead())
         {
             sLFGMgr->LeaveLfg(bot->GetGUID());
             return false;
         }
 
         ai->ChangeStrategy("-grind", BOT_STATE_NON_COMBAT);
-        if (urand(0, 1 + 10 / sPlayerbotAIConfig.randomChangeMultiplier))
-            return false;
+        // FEYZEE: disable probability for reject LFG
+        //if (urand(0, 1 + 10 / sPlayerbotAIConfig.randomChangeMultiplier))
+        //    return false;
 
         if (sRandomPlayerbotMgr.IsRandomBot(bot) && !bot->GetGroup())
             ai->ChangeStrategy("-grind", BOT_STATE_NON_COMBAT);
@@ -216,7 +238,7 @@ bool LfgLeaveAction::Execute(Event event)
         return false;
 
     sLFGMgr->LeaveLfg(bot->GetGUID());
-	return true;
+    return true;
 }
 
 bool LfgTeleportAction::Execute(Event event)
@@ -232,5 +254,5 @@ bool LfgTeleportAction::Execute(Event event)
 
     bot->ClearUnitState(UNIT_STATE_ALL_STATE_SUPPORTED);
     sLFGMgr->TeleportPlayer(bot, out);
-	return true;
+    return true;
 }
