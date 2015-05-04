@@ -52,7 +52,7 @@
 using namespace boost::program_options;
 
 #ifndef _TRINITY_CORE_CONFIG
-    #define _TRINITY_CORE_CONFIG  "Settings/worldserver.conf"
+    #define _TRINITY_CORE_CONFIG  "worldserver.conf"
 #endif
 
 #define WORLD_SLEEP_CONST 50

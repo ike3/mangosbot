@@ -68,7 +68,7 @@ RealmID = 1
 #        Example:     "@prefix@/share/trinitycore"
 #        Default:     "."
 
-DataDir = "Data"
+DataDir = "."
 
 #
 #    LogsDir
