@@ -395,6 +395,9 @@ enum NesingwaryTrapper
     GO_CARIBOU_TRAP_15  = 188008,
 
     SPELL_TRAPPED       = 46104,
+
+    // Texts
+    SAY_NESINGWARY_1    = 0
 };
 
 #define CaribouTrapsNum 15
@@ -471,7 +474,7 @@ public:
                         phase = 3;
                         break;
                     case 3:
-                        //Talk(SAY_NESINGWARY_1);
+                        Talk(SAY_NESINGWARY_1);
                         phaseTimer = 2000;
                         phase = 4;
                         break;
@@ -1703,7 +1706,7 @@ public:
                 break;
             }
             creature->SetStandState(UNIT_STAND_STATE_STAND);
-            creature->AI()->Talk(SAY_1);
+            creature->AI()->Talk(SAY_1, player);
             ENSURE_AI(npc_escortAI, (creature->AI()))->Start(true, false, player->GetGUID());
         }
         return true;

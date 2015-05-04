@@ -99,7 +99,9 @@ ConditionMgr::ConditionTypeInfo const ConditionMgr::StaticConditionTypeData[COND
     { "Distance",             true, true,  true  },
     { "Alive",               false, false, false },
     { "Health Value",         true, true,  false },
-    { "Health Pct",           true, true,  false }
+    { "Health Pct",           true, true, false  },
+    { "Realm Achievement",    true, false, false },
+    { "In Water",            false, false, false }
 };
 
 // Checks if object meets the condition
@@ -416,6 +418,19 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo)
                 condMeets = creature->GetCreatureTemplate()->type == ConditionValue1;
             break;
         }
+        case CONDITION_REALM_ACHIEVEMENT:
+        {
+            AchievementEntry const* achievement = sAchievementMgr->GetAchievement(ConditionValue1);
+            if (achievement && sAchievementMgr->IsRealmCompleted(achievement, std::numeric_limits<uint32>::max()))
+                condMeets = true;
+            break;
+        }
+        case CONDITION_IN_WATER:
+        {
+            if (Unit* unit = object->ToUnit())
+                condMeets = unit->IsInWater();
+            break;
+        }
         default:
             condMeets = false;
             break;
@@ -579,6 +594,12 @@ uint32 Condition::GetSearcherTypeMaskForCondition()
             break;
         case CONDITION_CREATURE_TYPE:
             mask |= GRID_MAP_TYPE_MASK_CREATURE;
+            break;
+        case CONDITION_REALM_ACHIEVEMENT:
+            mask |= GRID_MAP_TYPE_MASK_ALL;
+            break;
+        case CONDITION_IN_WATER:
+            mask |= GRID_MAP_TYPE_MASK_CREATURE | GRID_MAP_TYPE_MASK_PLAYER;
             break;
         default:
             ASSERT(false && "Condition::GetSearcherTypeMaskForCondition - missing condition handling!");
@@ -2055,6 +2076,18 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond)
         case CONDITION_AREAID:
         case CONDITION_PHASEMASK:
         case CONDITION_ALIVE:
+            break;
+        case CONDITION_REALM_ACHIEVEMENT:
+        {
+            AchievementEntry const* achievement = sAchievementMgr->GetAchievement(cond->ConditionValue1);
+            if (!achievement)
+            {
+                TC_LOG_ERROR("sql.sql", "%s has non existing realm first achivement id (%u), skipped.", cond->ToString(true).c_str(), cond->ConditionValue1);
+                return false;
+            }
+            break;
+        }
+        case CONDITION_IN_WATER:
             break;
         default:
             break;
