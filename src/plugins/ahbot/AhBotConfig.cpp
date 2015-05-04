@@ -26,13 +26,14 @@ void LoadSet(string value, T &res)
 bool AhBotConfig::Initialize()
 {
     string error;
-    if (!config.LoadInitial("ahbot.conf", error))
+    if (!config.LoadInitial("Settings/ahbot.conf", error))
     {
         sLog->outMessage("ahbot", LOG_LEVEL_INFO, "AhBot is Disabled. Unable to open configuration file ahbot.conf");
         return false;
     }
 
-    enabled = config.GetBoolDefault("AhBot.Enabled", true);
+    // FEYZEE: change defaults to false because of lag
+    enabled = config.GetBoolDefault("AhBot.Enabled", false);
 
     if (!enabled)
         sLog->outMessage("ahbot", LOG_LEVEL_INFO, "AhBot is Disabled in ahbot.conf");

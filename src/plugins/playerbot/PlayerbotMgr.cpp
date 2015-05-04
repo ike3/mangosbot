@@ -191,6 +191,13 @@ string PlayerbotHolder::ProcessBotCommand(string cmd, ObjectGuid guid, bool admi
                 factory.CleanRandomize();
                 return "ok";
             }
+            // FEYZEE: new command init=high80 used for 6000 gearscore gear set for bots
+            else if (cmd == "init=high80")
+            {
+                PlayerbotFactory factory(bot, 80, ITEM_QUALITY_EPIC);
+                factory.CleanBuild();
+                return "ok";
+            }
         }
 
         if (cmd == "update")

@@ -318,7 +318,8 @@ void RandomPlayerbotFactory::CreateRandomGuilds()
         Guild* guild = new Guild();
         if (!guild->Create(player, guildName))
         {
-            sLog->outMessage("playerbot", LOG_LEVEL_ERROR, "Error creating guild %s", guildName.c_str());
+            // FEYZEE: hide error caused by guild create
+            //sLog->outMessage("playerbot", LOG_LEVEL_ERROR, "Error creating guild %s", guildName.c_str());
             break;
         }
 
