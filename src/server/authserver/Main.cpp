@@ -44,7 +44,7 @@ using boost::asio::ip::tcp;
 using namespace boost::program_options;
 
 #ifndef _TRINITY_REALM_CONFIG
-# define _TRINITY_REALM_CONFIG  "authserver.conf"
+# define _TRINITY_REALM_CONFIG  "Settings/authserver.conf"
 #endif
 
 bool StartDB();
