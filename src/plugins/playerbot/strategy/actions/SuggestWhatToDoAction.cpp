@@ -30,8 +30,9 @@ bool SuggestWhatToDoAction::Execute(Event event)
     if (bot->GetInstanceId() || suggested)
         return false;
 
-    int index = rand() % suggestions.size();
-    (this->*suggestions[index])();
+    // FEYZEE: disable bot suggestions
+    //int index = rand() % suggestions.size();
+    //(this->*suggestions[index])();
 
     return suggested = true;
 }

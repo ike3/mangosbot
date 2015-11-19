@@ -15,7 +15,7 @@ AuctionHouseBot.Seller.Enabled = 0
 AuctionHouseBot.Buyer.Enabled = 0
 
 # Replace with the new AhBot
-AhBot.Enabled = 1
+AhBot.Enabled = 0
 
 # Should be used only if random bots are disabled
 # AhBot.GUID = 0
