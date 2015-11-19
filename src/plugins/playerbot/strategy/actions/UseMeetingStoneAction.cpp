@@ -47,7 +47,7 @@ bool SummonAction::Execute(Event event)
     if (!master)
         return false;
 
-    if (master->GetSession()->GetSecurity() < SEC_GAMEMASTER)
+    if (master->GetSession()->GetSecurity() < SEC_PLAYER)
     {
         ai->TellMasterNoFacing("You cannot summon me");
         return false;
