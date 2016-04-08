@@ -37,6 +37,7 @@
 #include <iostream>
 #include <vector>
 #include <errno.h>
+#include <cstdlib>
 
 #undef min
 #undef max
